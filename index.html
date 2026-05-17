@@ -370,8 +370,23 @@ function getAngles(lm) {
   const wrist=lm[0], mcp=lm[5];
   let dx = (mcp.x - wrist.x) - calibOffset.dx;
   let dy = (mcp.y - wrist.y) - calibOffset.dy;
+
+  // Dead zone — if one axis is dominant, suppress the other
+  // This prevents tilt from moving when you pan and vice versa
+  const DEAD = 0.04; // increase this value for stricter separation
+  const absDx = Math.abs(dx);
+  const absDy = Math.abs(dy);
+
+  if (absDx > absDy + DEAD) {
+    // Horizontal movement dominant — only pan, freeze tilt
+    dy = 0;
+  } else if (absDy > absDx + DEAD) {
+    // Vertical movement dominant — only tilt, freeze pan
+    dx = 0;
+  }
+
   dx *= speedMode; dy *= speedMode;
-  return { pan: clamp(90+dx*300,0,180), tilt: clamp(90-dy*300,0,180) };
+  return { pan: clamp(90+dx*500,0,180), tilt: clamp(90-dy*500,0,180) };
 }
 
 // ── UI ─────────────────────────────────────────────────────────────────────
@@ -432,15 +447,18 @@ function execCmd(cmd) {
 }
 
 function parseVoice(transcript) {
-  const t = transcript.toLowerCase();
-  if (t.includes('center'))                            execCmd('center');
-  else if (t.includes('unlock'))                       execCmd('unlock');
-  else if (t.includes('lock'))                         execCmd('lock');
-  else if (t.includes('slow'))                         execCmd('slow');
-  else if (t.includes('fast'))                         execCmd('fast');
-  else if (t.includes('normal'))                       execCmd('normal');
-  else if (t.includes('stop'))                         execCmd('stop');
-  else if (t.includes('calib'))                        execCmd('calibrate');
+  const t = transcript.toLowerCase().trim();
+  const words = t.split(/\s+/);
+  const has = (w) => words.includes(w);
+
+  if (has('center') || has('centre'))     execCmd('center');
+  else if (has('unlock'))                  execCmd('unlock');
+  else if (has('lock'))                    execCmd('lock');
+  else if (has('slow'))                    execCmd('slow');
+  else if (has('fast'))                    execCmd('fast');
+  else if (has('normal'))                  execCmd('normal');
+  else if (has('stop'))                    execCmd('stop');
+  else if (has('calibrate') || has('calib')) execCmd('calibrate');
   else showVoice('ROBO: "' + t + '"?');
 }
 
