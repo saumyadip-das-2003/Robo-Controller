@@ -366,10 +366,6 @@ setInterval(() => { document.getElementById('stat-fps').textContent = frameCount
 // ── Helpers ────────────────────────────────────────────────────────────────
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)));
 function smooth(buf, val) { buf.shift(); buf.push(val); return buf.reduce((a,b)=>a+b,0)/buf.length; }
-function isFist(lm) {
-  const tips=[8,12,16,20], pips=[6,10,14,18];
-  return tips.filter((t,i) => lm[t].y > lm[pips[i]].y).length >= 3;
-}
 function getAngles(lm) {
   const wrist=lm[0], mcp=lm[5];
   let dx = (mcp.x - wrist.x) - calibOffset.dx;
@@ -585,10 +581,6 @@ hands.onResults(results => {
     calibSamples.push({dx: mcp.x-wrist.x, dy: mcp.y-wrist.y});
   }
   if (isLocked) { setBadge('LOCKED','locked'); return; }
-  if (isFist(lm)) {
-    isLocked=true; setBadge('FIST — LOCKED','locked');
-    sendCommand(currentPan,currentTilt,true); return;
-  }
   const {pan,tilt} = getAngles(lm);
   const sPan  = clamp(smooth(panBuf,  pan),  0, 180);
   const sTilt = clamp(smooth(tiltBuf, tilt), 0, 180);
