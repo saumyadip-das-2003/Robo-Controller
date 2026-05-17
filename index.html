@@ -199,8 +199,59 @@ canvas { transform: scaleX(-1); }
   flex-shrink: 0;
 }
 
+/* Monitor */
+.monitor {
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  line-height: 1.7;
+  max-height: 72px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.monitor::-webkit-scrollbar { display: none; }
+.monitor-line { display: flex; gap: 6px; }
+.monitor-time { color: #444; flex-shrink: 0; }
+.monitor-text { color: #00ff88; }
+.monitor-text.warn  { color: #ffaa00; }
+.monitor-text.error { color: #ff4466; }
+.monitor-text.info  { color: #0088ff; }
+.monitor-text.voice { color: #aa44ff; }
+
+/* Metric bar */
+.metric-bar {
+  display: flex; gap: 6px;
+  margin-bottom: 8px;
+}
+.metric {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  text-align: center;
+}
+.metric-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px; font-weight: 700;
+  color: var(--accent);
+  display: block;
+}
+.metric-val.warn  { color: #ffaa00; }
+.metric-val.info  { color: var(--accent2); }
+.metric-val.voice { color: var(--voice); }
+.metric-lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px; color: var(--muted);
+  letter-spacing: 1px;
+}
+
 /* Command buttons row */
-.cmd-row { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
+.cmd-row { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
 .cmd-btn {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px; letter-spacing: 1px;
@@ -211,40 +262,31 @@ canvas { transform: scaleX(-1); }
 }
 .cmd-btn:active { background: var(--border); transform: scale(.95); color: var(--text); }
 
-/* TAP TO TALK button */
-.talk-row {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
-}
-.talk-btn {
+/* Action buttons row */
+.action-row { display: flex; gap: 6px; margin-bottom: 8px; }
+.action-btn {
   flex: 1;
-  background: var(--surface);
-  border: 1.5px solid var(--voice);
-  border-radius: 8px;
-  color: var(--voice);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px; letter-spacing: 1px;
-  padding: 12px;
-  cursor: pointer;
-  transition: all .15s;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  user-select: none; -webkit-user-select: none;
+  font-size: 10px; letter-spacing: 1px;
+  padding: 8px 6px; border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent; color: var(--muted);
+  cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
 }
-.talk-btn.recording {
-  background: var(--voice);
-  color: #fff;
+.action-btn:active { transform: scale(.95); }
+.action-btn.home-btn { border-color: var(--warn); color: var(--warn); }
+.action-btn.log-btn  { border-color: var(--accent2); color: var(--accent2); }
+.action-btn.mic-btn  {
+  flex: 2;
+  border-color: var(--voice); color: var(--voice);
+  font-size: 11px;
+}
+.action-btn.mic-btn.recording {
+  background: var(--voice); color: #fff;
   animation: mic-pulse .6s ease-in-out infinite;
 }
 @keyframes mic-pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
-.talk-hint {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px; color: var(--muted);
-  text-align: center; line-height: 1.5;
-  flex: 0 0 80px;
-}
-
-.stats-row { display: flex; gap: 14px; }
-.stat { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
-.stat span { color: var(--text); }
 
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .panel { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
@@ -306,6 +348,37 @@ canvas { transform: scaleX(-1); }
   </div>
 
   <div class="panel">
+
+    <!-- MONITOR -->
+    <div class="monitor" id="monitor">
+      <div class="monitor-line"><span class="monitor-time">00:00</span><span class="monitor-text info">ROBO system ready. Enter IP and connect.</span></div>
+    </div>
+
+    <!-- METRICS BAR -->
+    <div class="metric-bar">
+      <div class="metric">
+        <span class="metric-val" id="m-ping">—</span>
+        <span class="metric-lbl">PING</span>
+      </div>
+      <div class="metric">
+        <span class="metric-val info" id="m-fps">0</span>
+        <span class="metric-lbl">FPS</span>
+      </div>
+      <div class="metric">
+        <span class="metric-val" id="m-sent">0</span>
+        <span class="metric-lbl">SENT</span>
+      </div>
+      <div class="metric">
+        <span class="metric-val warn" id="m-mode">NORMAL</span>
+        <span class="metric-lbl">MODE</span>
+      </div>
+      <div class="metric">
+        <span class="metric-val" id="m-calib">—</span>
+        <span class="metric-lbl">CALIB</span>
+      </div>
+    </div>
+
+    <!-- COMMAND BUTTONS -->
     <div class="cmd-row">
       <button class="cmd-btn" onclick="execCmd('center')">CENTER</button>
       <button class="cmd-btn" onclick="execCmd('lock')">LOCK</button>
@@ -315,24 +388,24 @@ canvas { transform: scaleX(-1); }
       <button class="cmd-btn" onclick="execCmd('calibrate')">CALIB</button>
     </div>
 
-    <div class="talk-row">
-      <button class="talk-btn" id="talk-btn"
+    <!-- ACTION ROW: MIC + LOG + HOME -->
+    <div class="action-row">
+      <button class="action-btn mic-btn" id="talk-btn"
         ontouchstart="startTalk(event)" ontouchend="stopTalk(event)"
         onmousedown="startTalk(event)" onmouseup="stopTalk(event)">
-        <i class="ti ti-microphone" style="font-size:18px"></i>
+        <i class="ti ti-microphone" style="font-size:16px"></i>
         HOLD TO TALK
       </button>
-      <div class="talk-hint">
-        Say: center<br>lock / unlock<br>slow / fast / stop
-      </div>
+      <button class="action-btn log-btn" onclick="downloadLogs()">
+        <i class="ti ti-download" style="font-size:14px"></i>
+        LOG
+      </button>
+      <button class="action-btn home-btn" onclick="goHome()">
+        <i class="ti ti-home" style="font-size:14px"></i>
+        HOME
+      </button>
     </div>
 
-    <div class="stats-row">
-      <div class="stat">SENT <span id="stat-sent">0</span></div>
-      <div class="stat">FPS <span id="stat-fps">0</span></div>
-      <div class="stat">PING <span id="stat-ping">—</span></div>
-      <div class="stat">CALIB <span id="stat-calib">—</span></div>
-    </div>
   </div>
 </div>
 
@@ -361,9 +434,33 @@ let calibSamples = [], calibrating = false, calibDone = false;
 // Voice
 let rec = null, isRecording = false;
 
-setInterval(() => { document.getElementById('stat-fps').textContent = frameCount; frameCount = 0; }, 1000);
+setInterval(() => { document.getElementById('m-fps').textContent = frameCount; frameCount = 0; }, 1000);
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ── Monitor ────────────────────────────────────────────────────────────────
+let monitorStart = Date.now();
+function addLog(text, type='') {
+  const el  = document.getElementById('monitor');
+  if (!el) return;
+  const sec = Math.floor((Date.now() - monitorStart) / 1000);
+  const mm  = String(Math.floor(sec/60)).padStart(2,'0');
+  const ss  = String(sec%60).padStart(2,'0');
+  const line = document.createElement('div');
+  line.className = 'monitor-line';
+  line.innerHTML = `<span class="monitor-time">${mm}:${ss}</span><span class="monitor-text ${type}">${text}</span>`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── Go Home ────────────────────────────────────────────────────────────────
+function goHome() {
+  if (ws) { ws.close(); }
+  const cui = document.getElementById('control-ui');
+  cui.classList.remove('show');
+  cui.style.pointerEvents = 'none';
+  const welcome = document.getElementById('welcome-screen');
+  welcome.style.display = 'flex';
+  setTimeout(() => welcome.classList.remove('hide'), 50);
+}
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)));
 function smooth(buf, val) { buf.shift(); buf.push(val); return buf.reduce((a,b)=>a+b,0)/buf.length; }
 function getAngles(lm) {
@@ -409,9 +506,9 @@ function showVoice(text) {
 function setSpeedUI(m) {
   const badge = document.getElementById('mode-badge');
   const sv    = document.getElementById('speed-val');
-  if (m==='slow')  { badge.className='mode-badge slow'; badge.textContent='SLOW';   sv.textContent='0.4x'; sv.style.color='var(--accent2)'; }
-  else if(m==='fast'){ badge.className='mode-badge fast'; badge.textContent='FAST'; sv.textContent='1.8x'; sv.style.color='#ffaa00'; }
-  else             { badge.className='mode-badge';      badge.textContent='NORMAL'; sv.textContent='1x';   sv.style.color='var(--accent)'; }
+  if (m==='slow')  { badge.className='mode-badge slow'; badge.textContent='SLOW';   sv.textContent='0.4x'; sv.style.color='var(--accent2)'; document.getElementById('m-mode').textContent='SLOW'; document.getElementById('m-mode').className='metric-val info'; }
+  else if(m==='fast'){ badge.className='mode-badge fast'; badge.textContent='FAST'; sv.textContent='1.8x'; sv.style.color='#ffaa00'; document.getElementById('m-mode').textContent='FAST'; document.getElementById('m-mode').className='metric-val warn'; }
+  else             { badge.className='mode-badge';      badge.textContent='NORMAL'; sv.textContent='1x';   sv.style.color='var(--accent)'; document.getElementById('m-mode').textContent='NORM'; document.getElementById('m-mode').className='metric-val'; }
 }
 
 // ── Commands ───────────────────────────────────────────────────────────────
@@ -422,27 +519,42 @@ function execCmd(cmd) {
       panBuf.fill(90); tiltBuf.fill(90);
       updateGauges(90,90); sendCommand(90,90,false);
       showVoice('ROBO: centering');
+      addLog('CMD: center → pan=90° tilt=90°', 'info');
       break;
     case 'lock':
       isLocked=true; setBadge('LOCKED','locked');
-      showVoice('ROBO: locked'); break;
+      showVoice('ROBO: locked');
+      addLog('CMD: locked at pan='+currentPan+'° tilt='+currentTilt+'°', 'warn');
+      break;
     case 'unlock':
       isLocked=false; setBadge('UNLOCKED','active');
-      showVoice('ROBO: unlocked'); break;
+      showVoice('ROBO: unlocked');
+      addLog('CMD: unlocked', 'info');
+      break;
     case 'slow':
       speedMode=0.4; setSpeedUI('slow');
-      showVoice('ROBO: slow mode'); break;
+      showVoice('ROBO: slow mode');
+      addLog('CMD: speed → SLOW (0.4x)', 'warn');
+      break;
     case 'fast':
       speedMode=1.8; setSpeedUI('fast');
-      showVoice('ROBO: fast mode'); break;
+      showVoice('ROBO: fast mode');
+      addLog('CMD: speed → FAST (1.8x)', 'warn');
+      break;
     case 'normal':
       speedMode=1; setSpeedUI('normal');
-      showVoice('ROBO: normal mode'); break;
+      showVoice('ROBO: normal mode');
+      addLog('CMD: speed → NORMAL (1x)');
+      break;
     case 'stop':
       isLocked=true; sendCommand(currentPan,currentTilt,true);
-      setBadge('STOPPED','locked'); showVoice('ROBO: stopped'); break;
+      setBadge('STOPPED','locked'); showVoice('ROBO: stopped');
+      addLog('CMD: STOP — position frozen', 'error');
+      break;
     case 'calibrate':
-      startCalibration(); showVoice('ROBO: calibrating...'); break;
+      startCalibration(); showVoice('ROBO: calibrating...');
+      addLog('CMD: calibration started...', 'info');
+      break;
   }
 }
 
@@ -479,8 +591,9 @@ function startCalibration() {
         calibOffset.dx = calibSamples.reduce((a,b)=>a+b.dx,0)/calibSamples.length;
         calibOffset.dy = calibSamples.reduce((a,b)=>a+b.dy,0)/calibSamples.length;
         calibDone = true;
-        document.getElementById('stat-calib').textContent = 'OK';
+        document.getElementById('m-calib').textContent = 'OK';
         showVoice('ROBO: calibrated!');
+        addLog('Calibration complete — offset dx='+calibOffset.dx.toFixed(3)+' dy='+calibOffset.dy.toFixed(3), 'info');
       }
       overlay.classList.add('hidden');
       calibrating = false;
@@ -499,6 +612,7 @@ function initSpeech() {
   rec.onresult = (e) => {
     const t = e.results[0][0].transcript;
     showVoice('Heard: ' + t);
+    addLog('VOICE: "' + t + '"', 'voice');
     parseVoice(t);
   };
   rec.onerror = (e) => {
@@ -531,24 +645,82 @@ function stopTalkUI() {
   btn.innerHTML = '<i class="ti ti-microphone" style="font-size:18px"></i> HOLD TO TALK';
 }
 
+// ── Logging System ─────────────────────────────────────────────────────────
+const logs = [];
+let sessionStart = null;
+
+function logCmd(pan, tilt, locked, latency) {
+  logs.push({
+    t: Date.now() - sessionStart,
+    pan, tilt, locked,
+    latency,
+    fps: frameCount,
+    speed: speedMode
+  });
+}
+
+function downloadLogs() {
+  if (logs.length === 0) return;
+  const sessionDuration = ((Date.now() - sessionStart) / 1000).toFixed(1);
+  const latencies = logs.map(l => l.latency).filter(l => l > 0);
+  const avgLatency = latencies.length ? (latencies.reduce((a,b)=>a+b,0)/latencies.length).toFixed(1) : 'N/A';
+  const minLatency = latencies.length ? Math.min(...latencies) : 'N/A';
+  const maxLatency = latencies.length ? Math.max(...latencies) : 'N/A';
+  const avgFps = (logs.map(l=>l.fps).reduce((a,b)=>a+b,0)/logs.length).toFixed(1);
+  const lockedCount = logs.filter(l=>l.locked).length;
+
+  // Build CSV
+  let csv = 'ROBO Session Log\n';
+  csv += `Session Start,${new Date(sessionStart).toISOString()}\n`;
+  csv += `Duration (s),${sessionDuration}\n`;
+  csv += `Total Commands,${logs.length}\n`;
+  csv += `Avg Latency (ms),${avgLatency}\n`;
+  csv += `Min Latency (ms),${minLatency}\n`;
+  csv += `Max Latency (ms),${maxLatency}\n`;
+  csv += `Avg FPS,${avgFps}\n`;
+  csv += `Locked Commands,${lockedCount}\n`;
+  csv += '\n';
+  csv += 'time_ms,pan,tilt,locked,latency_ms,fps,speed_mode\n';
+  logs.forEach(l => {
+    csv += `${l.t},${l.pan},${l.tilt},${l.locked},${l.latency},${l.fps},${l.speed}\n`;
+  });
+
+  // Auto download
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `ROBO_log_${new Date(sessionStart).toISOString().slice(0,19).replace(/:/g,'-')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showVoice(`Log saved! ${logs.length} commands`);
+}
+
 // ── WebSocket ──────────────────────────────────────────────────────────────
 function connectWS(ip) {
   try { ws = new WebSocket(`ws://${ip}:8765`); } catch(e) { return; }
   ws.onopen = () => {
     wsReady = true;
+    sessionStart = Date.now();
+    logs.length = 0;
+    monitorStart = Date.now();
     document.getElementById('conn-dot').classList.add('on');
     pingStart = Date.now();
     ws.send(JSON.stringify({ping:true}));
     showVoice('ROBO online!');
+    addLog('Connected to ESP32 at ' + ip, 'info');
     setTimeout(startCalibration, 800);
   };
   ws.onmessage = () => {
-    document.getElementById('stat-ping').textContent = (Date.now()-pingStart)+'ms';
+    const lat = Date.now()-pingStart;
+    document.getElementById('m-ping').textContent = lat+'ms';
   };
-  ws.onerror  = () => {};
+  ws.onerror  = () => { addLog('Connection error', 'error'); };
   ws.onclose  = () => {
     wsReady=false; ws=null;
     document.getElementById('conn-dot').classList.remove('on');
+    addLog('Disconnected — downloading log...', 'warn');
+    downloadLogs();
   };
 }
 
@@ -556,7 +728,9 @@ function sendCommand(pan, tilt, locked) {
   if (!wsReady||!ws) return;
   if (pan===lastPan&&tilt===lastTilt) return;
   lastPan=pan; lastTilt=tilt;
-  try { ws.send(JSON.stringify({pan,tilt,locked})); document.getElementById('stat-sent').textContent=++sentCount; }
+  const latency = Date.now() - pingStart;
+  logCmd(pan, tilt, locked, latency);
+  try { ws.send(JSON.stringify({pan,tilt,locked})); document.getElementById('m-sent').textContent=++sentCount; }
   catch(e){}
 }
 
@@ -571,6 +745,7 @@ function bootROBO() {
   connectWS(ip);
   startCamera();
   initSpeech();
+  addLog('System booting — connecting to ' + ip, 'info');
 }
 
 // ── MediaPipe ──────────────────────────────────────────────────────────────
