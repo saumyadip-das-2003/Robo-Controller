@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>JIN — Gesture Robot Controller</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&family=Space+Grotesk:wght@300;400;500;700&display=swap');
+:root {
+  --bg: #05050d;
+  --surface: #0d0d1a;
+  --border: #1a1a2e;
+  --accent: #00ffaa;
+  --accent2: #0088ff;
+  --warn: #ff3355;
+  --voice: #aa44ff;
+  --text: #dde0f0;
+  --muted: #44445a;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Grotesk', sans-serif;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── WELCOME SCREEN ── */
+#welcome-screen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  z-index: 100;
+  transition: opacity .8s ease;
+}
+#welcome-screen.hide { opacity: 0; pointer-events: none; }
+
+.jin-logo {
+  font-family: 'Orbitron', monospace;
+  font-size: 72px;
+  font-weight: 900;
+  color: var(--accent);
+  letter-spacing: 16px;
+  animation: pulse-glow 2.5s ease-in-out infinite;
+  margin-bottom: 8px;
+}
+@keyframes pulse-glow {
+  0%,100% { opacity: 1; }
+  50% { opacity: .6; }
+}
+.jin-subtitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 4px;
+  margin-bottom: 60px;
+}
+.welcome-msg {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  color: var(--text);
+  text-align: center;
+  margin-bottom: 20px;
+  opacity: .8;
+}
+.wake-hint {
+  font-family: 'Orbitron', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 4px;
+  border: 1px solid var(--accent);
+  padding: 14px 32px;
+  border-radius: 4px;
+  animation: blink-border 1.5s ease-in-out infinite;
+  margin-bottom: 40px;
+}
+@keyframes blink-border {
+  0%,100% { border-color: var(--accent); color: var(--accent); }
+  50% { border-color: #003322; color: #005533; }
+}
+
+/* IP setup on welcome screen */
+.ip-setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+  padding: 0 20px;
+}
+.ip-setup input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  padding: 10px 14px;
+  outline: none;
+  text-align: center;
+  transition: border-color .2s;
+}
+.ip-setup input:focus { border-color: var(--accent); }
+.ip-setup input::placeholder { color: var(--muted); font-size: 12px; }
+.ip-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 2px;
+}
+
+/* Mic status on welcome */
+.mic-status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 20px;
+  letter-spacing: 1px;
+  transition: color .3s;
+}
+.mic-status.listening { color: var(--voice); }
+.mic-status.heard     { color: var(--accent); }
+
+/* Scanline decoration */
+.scanlines {
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,170,.015) 2px, rgba(0,255,170,.015) 4px);
+  pointer-events: none;
+  z-index: 200;
+}
+
+/* ── MAIN CONTROL UI ── */
+#control-ui {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  opacity: 0;
+  transition: opacity .8s ease;
+  pointer-events: none;
+}
+#control-ui.show { opacity: 1; pointer-events: all; }
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.hdr-logo {
+  font-family: 'Orbitron', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 4px;
+}
+.hdr-right { display: flex; align-items: center; gap: 8px; }
+.mode-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--muted);
+  color: var(--muted);
+  transition: all .3s;
+}
+.mode-badge.slow-mode { border-color: var(--accent2); color: var(--accent2); }
+.mode-badge.fast-mode { border-color: #ffaa00; color: #ffaa00; }
+.conn-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--warn);
+  transition: background .3s;
+}
+.conn-dot.on { background: var(--accent); }
+
+.cam-wrap {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: #000;
+}
+video, canvas {
+  position: absolute; top:0; left:0;
+  width:100%; height:100%;
+  object-fit: cover;
+}
+video  { transform: scaleX(-1); }
+canvas { transform: scaleX(-1); }
+
+/* Gesture badge */
+.g-badge {
+  position: absolute;
+  top: 10px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,.75);
+  border: 1px solid var(--muted);
+  border-radius: 20px;
+  padding: 5px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: nowrap;
+  transition: all .2s;
+  z-index: 10;
+}
+.g-badge.active { border-color: var(--accent); color: var(--accent); }
+.g-badge.locked { border-color: var(--warn);   color: var(--warn);   }
+.g-badge.calib  { border-color: #ffaa00;        color: #ffaa00;       }
+
+/* Voice feedback badge */
+.v-badge {
+  position: absolute;
+  top: 46px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10,0,20,.8);
+  border: 1px solid var(--voice);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--voice);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: nowrap;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity .3s;
+}
+.v-badge.show { opacity: 1; }
+
+/* Gauges */
+.gauges {
+  position: absolute;
+  bottom: 10px; left: 10px; right: 10px;
+  display: flex; gap: 8px;
+  z-index: 10;
+}
+.gauge {
+  flex: 1;
+  background: rgba(0,0,0,.7);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.g-label {
+  font-size: 9px; letter-spacing: 2px;
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 6px;
+}
+.g-bar-bg { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+.g-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width .08s linear; }
+.g-bar-fill.tilt { background: var(--accent2); }
+.g-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px; font-weight: 700;
+  color: var(--text);
+}
+
+/* Speed indicator */
+.speed-gauge {
+  flex: 0 0 70px;
+  background: rgba(0,0,0,.7);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.speed-val {
+  font-family: 'Orbitron', monospace;
+  font-size: 14px; font-weight: 700;
+  color: var(--accent);
+}
+.speed-lbl { font-size: 9px; color: var(--muted); font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; margin-top: 2px; }
+
+/* Bottom panel */
+.panel {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  flex-shrink: 0;
+}
+.cmd-row {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.cmd-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 1px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .2s;
+}
+.cmd-btn:active { background: var(--border); transform: scale(.96); }
+.cmd-btn.voice-active { border-color: var(--voice); color: var(--voice); }
+
+.stats-row { display: flex; gap: 16px; }
+.stat { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
+.stat span { color: var(--text); }
+
+/* Calibration countdown */
+.calib-count {
+  position: absolute;
+  inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: rgba(0,0,0,.7);
+  z-index: 15;
+  transition: opacity .5s;
+}
+.calib-count.hidden { opacity: 0; pointer-events: none; }
+.calib-num {
+  font-family: 'Orbitron', monospace;
+  font-size: 64px; font-weight: 900;
+  color: #ffaa00;
+}
+.calib-msg {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; color: #ffaa00;
+  letter-spacing: 2px; margin-top: 8px;
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .panel { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+}
+</style>
+</head>
+<body>
+
+<div class="scanlines"></div>
+
+<!-- ── WELCOME SCREEN ── -->
+<div id="welcome-screen">
+  <div class="jin-logo">JIN</div>
+  <div class="jin-subtitle">GESTURE · VOICE · CONTROL</div>
+  <div class="welcome-msg">Welcome. Connect ESP32 then<br>speak the wake command.</div>
+  <div class="wake-hint">JIN START</div>
+
+  <div class="ip-setup">
+    <div class="ip-label">ESP32 IP ADDRESS</div>
+    <input id="ip-input" type="text" inputmode="decimal" placeholder="192.168.x.x" value="">
+  </div>
+
+  <div class="mic-status" id="mic-status">
+    <i class="ti ti-microphone"></i> initializing microphone...
+  </div>
+</div>
+
+<!-- ── CONTROL UI ── -->
+<div id="control-ui">
+  <header>
+    <div class="hdr-logo">JIN</div>
+    <div class="hdr-right">
+      <div class="mode-badge" id="mode-badge">NORMAL</div>
+      <div class="conn-dot" id="conn-dot"></div>
+    </div>
+  </header>
+
+  <div class="cam-wrap">
+    <video id="video" playsinline autoplay muted></video>
+    <canvas id="canvas"></canvas>
+
+    <div class="g-badge" id="g-badge">NO HAND</div>
+    <div class="v-badge" id="v-badge">JIN heard you</div>
+
+    <!-- Calibration overlay -->
+    <div class="calib-count hidden" id="calib-overlay">
+      <div class="calib-num" id="calib-num">3</div>
+      <div class="calib-msg">HOLD HAND STILL — CALIBRATING</div>
+    </div>
+
+    <div class="gauges">
+      <div class="gauge">
+        <div class="g-label">PAN</div>
+        <div class="g-bar-bg"><div class="g-bar-fill" id="pan-bar" style="width:50%"></div></div>
+        <div class="g-val" id="pan-val">90°</div>
+      </div>
+      <div class="gauge">
+        <div class="g-label">TILT</div>
+        <div class="g-bar-bg"><div class="g-bar-fill tilt" id="tilt-bar" style="width:50%"></div></div>
+        <div class="g-val" id="tilt-val">90°</div>
+      </div>
+      <div class="speed-gauge">
+        <div class="speed-val" id="speed-val">1x</div>
+        <div class="speed-lbl">SPEED</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="cmd-row">
+      <button class="cmd-btn" onclick="execCmd('center')">CENTER</button>
+      <button class="cmd-btn" onclick="execCmd('lock')">LOCK</button>
+      <button class="cmd-btn" onclick="execCmd('unlock')">UNLOCK</button>
+      <button class="cmd-btn" onclick="execCmd('slow')">SLOW</button>
+      <button class="cmd-btn" onclick="execCmd('fast')">FAST</button>
+      <button class="cmd-btn" onclick="execCmd('stop')">STOP</button>
+    </div>
+    <div class="stats-row">
+      <div class="stat">SENT <span id="stat-sent">0</span></div>
+      <div class="stat">FPS <span id="stat-fps">0</span></div>
+      <div class="stat">PING <span id="stat-ping">—</span></div>
+      <div class="stat">CALIB <span id="stat-calib">—</span></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let ws         = null;
+let wsReady    = false;
+let sentCount  = 0;
+let frameCount = 0;
+let lastPan    = -1, lastTilt = -1;
+let currentPan = 90, currentTilt = 90;
+let pingStart  = 0;
+let isLocked   = false;
+let speedMode  = 1;        // 1 = normal, 0.4 = slow, 1.8 = fast
+let started    = false;    // JIN START received
+
+// Tremor filter — rolling average buffer
+const SMOOTH = 6;
+let panBuf  = Array(SMOOTH).fill(90);
+let tiltBuf = Array(SMOOTH).fill(90);
+
+// Calibration
+let calibDone    = false;
+let calibOffset  = { dx: 0, dy: 0 };
+let calibSamples = [];
+let calibrating  = false;
+
+setInterval(() => {
+  document.getElementById('stat-fps').textContent = frameCount;
+  frameCount = 0;
+}, 1000);
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)));
+
+function smooth(buf, val) {
+  buf.shift(); buf.push(val);
+  return buf.reduce((a, b) => a + b, 0) / buf.length;
+}
+
+function isFist(lm) {
+  const tips = [8,12,16,20], pips = [6,10,14,18];
+  return tips.filter((t,i) => lm[t].y > lm[pips[i]].y).length >= 3;
+}
+
+function getAngles(lm) {
+  const wrist = lm[0], mcp = lm[5];
+  let dx = (mcp.x - wrist.x) - calibOffset.dx;
+  let dy = (mcp.y - wrist.y) - calibOffset.dy;
+  dx *= speedMode;
+  dy *= speedMode;
+  const pan  = clamp(90 + dx * 300, 0, 180);
+  const tilt = clamp(90 - dy * 300, 0, 180);
+  return { pan, tilt };
+}
+
+// ── Calibration ────────────────────────────────────────────────────────────
+function startCalibration() {
+  if (calibrating) return;
+  calibrating = true;
+  calibSamples = [];
+  const overlay = document.getElementById('calib-overlay');
+  const numEl   = document.getElementById('calib-num');
+  overlay.classList.remove('hidden');
+  setBadge('CALIBRATING...', 'calib');
+
+  let count = 3;
+  numEl.textContent = count;
+  const tick = setInterval(() => {
+    count--;
+    numEl.textContent = count;
+    if (count <= 0) {
+      clearInterval(tick);
+      // Compute average offset
+      if (calibSamples.length > 0) {
+        const avgDx = calibSamples.reduce((a,b) => a + b.dx, 0) / calibSamples.length;
+        const avgDy = calibSamples.reduce((a,b) => a + b.dy, 0) / calibSamples.length;
+        calibOffset = { dx: avgDx, dy: avgDy };
+        calibDone = true;
+        document.getElementById('stat-calib').textContent = 'OK';
+        showVoice('Calibrated!');
+      }
+      overlay.classList.add('hidden');
+      calibrating = false;
+    }
+  }, 1000);
+}
+
+// ── UI ─────────────────────────────────────────────────────────────────────
+function setBadge(text, cls) {
+  const b = document.getElementById('g-badge');
+  b.textContent = text;
+  b.className   = 'g-badge ' + (cls || '');
+}
+
+function updateGauges(pan, tilt) {
+  document.getElementById('pan-val').textContent  = pan  + '°';
+  document.getElementById('tilt-val').textContent = tilt + '°';
+  document.getElementById('pan-bar').style.width  = (pan  / 180 * 100).toFixed(1) + '%';
+  document.getElementById('tilt-bar').style.width = (tilt / 180 * 100).toFixed(1) + '%';
+}
+
+let vTimer = null;
+function showVoice(text) {
+  const b = document.getElementById('v-badge');
+  b.textContent = text;
+  b.classList.add('show');
+  clearTimeout(vTimer);
+  vTimer = setTimeout(() => b.classList.remove('show'), 2500);
+}
+
+function setMode(m) {
+  speedMode = m === 'slow' ? 0.4 : m === 'fast' ? 1.8 : 1;
+  const badge = document.getElementById('mode-badge');
+  const sv    = document.getElementById('speed-val');
+  if (m === 'slow') {
+    badge.className = 'mode-badge slow-mode';
+    badge.textContent = 'SLOW';
+    sv.textContent = '0.4x';
+    sv.style.color = 'var(--accent2)';
+  } else if (m === 'fast') {
+    badge.className = 'mode-badge fast-mode';
+    badge.textContent = 'FAST';
+    sv.textContent = '1.8x';
+    sv.style.color = '#ffaa00';
+  } else {
+    badge.className = 'mode-badge';
+    badge.textContent = 'NORMAL';
+    sv.textContent = '1x';
+    sv.style.color = 'var(--accent)';
+  }
+}
+
+// ── Commands ───────────────────────────────────────────────────────────────
+function execCmd(cmd) {
+  switch(cmd) {
+    case 'center':
+      currentPan = 90; currentTilt = 90;
+      panBuf.fill(90); tiltBuf.fill(90);
+      updateGauges(90, 90);
+      sendCommand(90, 90, false);
+      showVoice('JIN: centering...');
+      break;
+    case 'lock':
+      isLocked = true;
+      setBadge('LOCKED', 'locked');
+      showVoice('JIN: locked');
+      break;
+    case 'unlock':
+      isLocked = false;
+      setBadge('UNLOCKED', 'active');
+      showVoice('JIN: unlocked');
+      break;
+    case 'slow':
+      setMode('slow');
+      showVoice('JIN: slow mode');
+      break;
+    case 'fast':
+      setMode('fast');
+      showVoice('JIN: fast mode');
+      break;
+    case 'normal':
+      setMode('normal');
+      showVoice('JIN: normal mode');
+      break;
+    case 'stop':
+      isLocked = true;
+      sendCommand(currentPan, currentTilt, true);
+      showVoice('JIN: stopped');
+      setBadge('STOPPED', 'locked');
+      break;
+    case 'calibrate':
+      startCalibration();
+      showVoice('JIN: calibrating...');
+      break;
+  }
+}
+
+// ── WebSocket ──────────────────────────────────────────────────────────────
+function connectWS(ip) {
+  try { ws = new WebSocket(`ws://${ip}:8765`); }
+  catch(e) { return; }
+
+  ws.onopen = () => {
+    wsReady = true;
+    document.getElementById('conn-dot').classList.add('on');
+    pingStart = Date.now();
+    ws.send(JSON.stringify({ ping: true }));
+    showVoice('Connected to JIN!');
+    // Auto-start calibration after connect
+    setTimeout(startCalibration, 1000);
+  };
+  ws.onmessage = () => {
+    document.getElementById('stat-ping').textContent = (Date.now() - pingStart) + 'ms';
+  };
+  ws.onerror = () => {};
+  ws.onclose = () => {
+    wsReady = false; ws = null;
+    document.getElementById('conn-dot').classList.remove('on');
+  };
+}
+
+function sendCommand(pan, tilt, locked) {
+  if (!wsReady || !ws) return;
+  if (pan === lastPan && tilt === lastTilt) return;
+  lastPan = pan; lastTilt = tilt;
+  try {
+    ws.send(JSON.stringify({ pan, tilt, locked }));
+    document.getElementById('stat-sent').textContent = ++sentCount;
+  } catch(e) {}
+}
+
+// ── Voice Recognition ──────────────────────────────────────────────────────
+function initVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    document.getElementById('mic-status').textContent = 'Voice not supported on this browser';
+    return;
+  }
+
+  const rec = new SR();
+  rec.continuous   = true;
+  rec.interimResults = false;
+  rec.lang         = 'en-US';
+
+  rec.onstart = () => {
+    const ms = document.getElementById('mic-status');
+    ms.textContent = 'Listening for "JIN START"...';
+    ms.className   = 'mic-status listening';
+  };
+
+  rec.onresult = (e) => {
+    const transcript = Array.from(e.results)
+      .map(r => r[0].transcript.toLowerCase().trim())
+      .join(' ');
+
+    console.log('[VOICE]', transcript);
+
+    // Must contain "jin"
+    if (!transcript.includes('jin')) return;
+
+    // Welcome screen — only listen for START
+    if (!started) {
+      if (transcript.includes('start')) {
+        const ip = document.getElementById('ip-input').value.trim();
+        if (!ip) {
+          const ms = document.getElementById('mic-status');
+          ms.textContent = 'Enter ESP32 IP first!';
+          ms.className = 'mic-status';
+          return;
+        }
+        bootJIN(ip);
+      }
+      return;
+    }
+
+    // Control commands
+    if (transcript.includes('center'))    execCmd('center');
+    else if (transcript.includes('lock') && !transcript.includes('unlock')) execCmd('lock');
+    else if (transcript.includes('unlock')) execCmd('unlock');
+    else if (transcript.includes('slow'))   execCmd('slow');
+    else if (transcript.includes('fast'))   execCmd('fast');
+    else if (transcript.includes('normal')) execCmd('normal');
+    else if (transcript.includes('stop'))   execCmd('stop');
+    else if (transcript.includes('calibrate')) execCmd('calibrate');
+  };
+
+  rec.onerror = (e) => {
+    if (e.error !== 'no-speech') console.warn('[VOICE ERR]', e.error);
+  };
+
+  rec.onend = () => { try { rec.start(); } catch(e) {} };
+
+  try { rec.start(); } catch(e) {}
+}
+
+// ── Boot JIN ───────────────────────────────────────────────────────────────
+function bootJIN(ip) {
+  started = true;
+
+  // Animate welcome screen out
+  const ws_el = document.getElementById('welcome-screen');
+  ws_el.classList.add('hide');
+  setTimeout(() => ws_el.style.display = 'none', 900);
+
+  // Show control UI
+  const cui = document.getElementById('control-ui');
+  cui.classList.add('show');
+
+  // Connect WebSocket
+  connectWS(ip);
+
+  // Start camera
+  startCamera();
+}
+
+// ── MediaPipe ──────────────────────────────────────────────────────────────
+const video  = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+
+const hands = new Hands({
+  locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+});
+hands.setOptions({
+  maxNumHands: 1,
+  modelComplexity: 1,
+  minDetectionConfidence: 0.7,
+  minTrackingConfidence:  0.6,
+});
+
+hands.onResults(results => {
+  frameCount++;
+  canvas.width  = video.videoWidth  || canvas.offsetWidth;
+  canvas.height = video.videoHeight || canvas.offsetHeight;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+    setBadge('NO HAND', '');
+    return;
+  }
+
+  const lm = results.multiHandLandmarks[0];
+  drawConnectors(ctx, lm, HAND_CONNECTIONS, { color: '#00ffaa44', lineWidth: 2 });
+  drawLandmarks(ctx,  lm, { color: '#00ffaa', lineWidth: 1, radius: 3 });
+
+  // Collect calibration samples
+  if (calibrating) {
+    const wrist = lm[0], mcp = lm[5];
+    calibSamples.push({ dx: mcp.x - wrist.x, dy: mcp.y - wrist.y });
+  }
+
+  if (isLocked) {
+    setBadge('LOCKED', 'locked');
+    return;
+  }
+
+  if (isFist(lm)) {
+    isLocked = true;
+    setBadge('FIST — LOCKED', 'locked');
+    sendCommand(currentPan, currentTilt, true);
+    return;
+  }
+
+  const { pan, tilt } = getAngles(lm);
+
+  // Tremor filter — smooth values
+  const sPan  = clamp(smooth(panBuf,  pan),  0, 180);
+  const sTilt = clamp(smooth(tiltBuf, tilt), 0, 180);
+
+  currentPan  = sPan;
+  currentTilt = sTilt;
+
+  setBadge(`PAN ${sPan}°  TILT ${sTilt}°`, 'active');
+  updateGauges(sPan, sTilt);
+  sendCommand(sPan, sTilt, false);
+});
+
+// ── Camera ─────────────────────────────────────────────────────────────────
+async function startCamera() {
+  const attempts = [
+    { video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } },
+    { video: { width: { ideal: 640 }, height: { ideal: 480 } } },
+    { video: true }
+  ];
+  let stream = null;
+  for (const c of attempts) {
+    try { stream = await navigator.mediaDevices.getUserMedia(c); break; }
+    catch(e) { continue; }
+  }
+  if (!stream) return;
+  video.srcObject = stream;
+  await new Promise(r => { video.onloadedmetadata = r; });
+  await video.play();
+  const camera = new Camera(video, {
+    onFrame: async () => { await hands.send({ image: video }); },
+    width: 640, height: 480,
+  });
+  camera.start();
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+initVoice();
+</script>
+</body>
+</html>
