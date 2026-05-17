@@ -579,7 +579,7 @@ const canvas = document.getElementById('canvas');
 const ctx    = canvas.getContext('2d');
 
 const hands = new Hands({ locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
-hands.setOptions({ maxNumHands:1, modelComplexity:1, minDetectionConfidence:0.7, minTrackingConfidence:0.6 });
+hands.setOptions({ maxNumHands:2, modelComplexity:1, minDetectionConfidence:0.7, minTrackingConfidence:0.6 });
 
 hands.onResults(results => {
   frameCount++;
@@ -588,22 +588,65 @@ hands.onResults(results => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (!results.multiHandLandmarks || !results.multiHandLandmarks.length) {
-    setBadge('NO HAND',''); return;
+    setBadge('SHOW HANDS',''); return;
   }
-  const lm = results.multiHandLandmarks[0];
-  drawConnectors(ctx, lm, HAND_CONNECTIONS, {color:'#00ffaa44', lineWidth:2});
-  drawLandmarks(ctx,  lm, {color:'#00ffaa', lineWidth:1, radius:3});
 
-  if (calibrating) {
+  let panAngle  = currentPan;
+  let tiltAngle = currentTilt;
+  let leftFound = false, rightFound = false;
+
+  results.multiHandLandmarks.forEach((lm, i) => {
+    // MediaPipe handedness is mirrored for front camera
+    // "Left" in results = user's Right hand, "Right" in results = user's Left hand
+    const label = results.multiHandedness[i].label; // "Left" or "Right"
+    const isUserLeft  = (label === 'Right'); // mirrored
+    const isUserRight = (label === 'Left');  // mirrored
+
+    // Draw skeleton — green for left, blue for right
+    const color = isUserLeft ? '#00ffaa44' : '#0088ff44';
+    const dotColor = isUserLeft ? '#00ffaa' : '#0088ff';
+    drawConnectors(ctx, lm, HAND_CONNECTIONS, {color, lineWidth:2});
+    drawLandmarks(ctx,  lm, {color: dotColor, lineWidth:1, radius:3});
+
+    if (calibrating) {
+      const wrist=lm[0], mcp=lm[5];
+      calibSamples.push({dx: mcp.x-wrist.x, dy: mcp.y-wrist.y});
+    }
+
+    if (isLocked) return;
+
     const wrist=lm[0], mcp=lm[5];
-    calibSamples.push({dx: mcp.x-wrist.x, dy: mcp.y-wrist.y});
-  }
+    let dx = (mcp.x - wrist.x) - calibOffset.dx;
+    let dy = (mcp.y - wrist.y) - calibOffset.dy;
+
+    if (isUserLeft) {
+      // LEFT hand → PAN only
+      leftFound = true;
+      dx *= speedMode;
+      panAngle = clamp(90 + dx * 500, 0, 180);
+    } else if (isUserRight) {
+      // RIGHT hand → TILT only
+      rightFound = true;
+      dy *= speedMode;
+      tiltAngle = clamp(90 - dy * 500, 0, 180);
+    }
+  });
+
   if (isLocked) { setBadge('LOCKED','locked'); return; }
-  const {pan,tilt} = getAngles(lm);
-  const sPan  = clamp(smooth(panBuf,  pan),  0, 180);
-  const sTilt = clamp(smooth(tiltBuf, tilt), 0, 180);
-  currentPan=sPan; currentTilt=sTilt;
-  setBadge(`PAN ${sPan}°  TILT ${sTilt}°`,'active');
+
+  // Smooth each axis independently
+  const sPan  = leftFound  ? clamp(smooth(panBuf,  panAngle),  0, 180) : currentPan;
+  const sTilt = rightFound ? clamp(smooth(tiltBuf, tiltAngle), 0, 180) : currentTilt;
+
+  currentPan  = sPan;
+  currentTilt = sTilt;
+
+  // Badge shows which hands detected
+  const handStr = leftFound && rightFound ? 'L:PAN  R:TILT'
+                : leftFound  ? 'LEFT → PAN'
+                : rightFound ? 'RIGHT → TILT'
+                : 'NO HAND';
+  setBadge(`${handStr}  ${sPan}°/${sTilt}°`, 'active');
   updateGauges(sPan, sTilt);
   sendCommand(sPan, sTilt, false);
 });
